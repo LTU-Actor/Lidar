@@ -13,15 +13,15 @@
 #include <math.h>
 #include <list>
 
-#include <ltu_actor_lidar/Region.h>
+#include <ltu_actor_route_obstacle/Region.h>
 
 #include <visualization_msgs/Marker.h>
 #include <visualization_msgs/MarkerArray.h>
 
 #include <dynamic_reconfigure/server.h>
-#include <ltu_actor_lidar/RegionConfig.h>
+#include <ltu_actor_route_obstacle/RegionConfig.h>
 
-//#include <ltu_actor_lidar/Obstacle_locConfig.h>
+//#include <ltu_actor_route_obstacle/Obstacle_locConfig.h>
 //#include <dynamic_reconfigure/server.h>
 //#include <pcl/PCLPointCloud2.h>
 
@@ -49,7 +49,7 @@ class obstacle_loc{
     private:
         void TransformToBase(actor_cloud_ptr_t& out, actor_cloud_ptr_t& in);
         bool WithinRegion(const float& x, const float& y, const float& z, region reg);
-        void configCallback(ltu_actor_lidar::RegionConfig &config, uint32_t level);
+        void configCallback(ltu_actor_route_obstacle::RegionConfig &config, uint32_t level);
 
         // Callback
         void CloudCallback(const sensor_msgs::PointCloud2ConstPtr&);
@@ -71,8 +71,8 @@ class obstacle_loc{
         region right_close ;
         region right_far; //not used;
 
-        dynamic_reconfigure::Server<ltu_actor_lidar::RegionConfig> server_;
-        ltu_actor_lidar::RegionConfig config_;
+        dynamic_reconfigure::Server<ltu_actor_route_obstacle::RegionConfig> server_;
+        ltu_actor_route_obstacle::RegionConfig config_;
 
     public:
         obstacle_loc();
@@ -121,20 +121,20 @@ obstacle_loc::obstacle_loc()
 
     nh_ = ros::NodeHandle("~");
 
-    pub_ = nh_.advertise<ltu_actor_lidar::Region>("regions", 10);
+    pub_ = nh_.advertise<ltu_actor_route_obstacle::Region>("regions", 10);
     cloud_pub = nh_.advertise<actor_cloud_t>("centered_cloud",10);
     vis_pub = nh_.advertise<visualization_msgs::MarkerArray>( "/regions_visualization", 10);
     sub_ = nh_.subscribe<sensor_msgs::PointCloud2>("/velodyne_points", 100, &obstacle_loc::CloudCallback, this);
 
     // Dynamic Reconfigure
-    dynamic_reconfigure::Server<ltu_actor_lidar::RegionConfig>::CallbackType cb;
+    dynamic_reconfigure::Server<ltu_actor_route_obstacle::RegionConfig>::CallbackType cb;
     cb = boost::bind(&obstacle_loc::configCallback, this, _1, _2);
     server_.setCallback(cb);
     server_.getConfigDefault(config_);
 }
 
 
-void obstacle_loc::configCallback(ltu_actor_lidar::RegionConfig &config, uint32_t level)
+void obstacle_loc::configCallback(ltu_actor_route_obstacle::RegionConfig &config, uint32_t level)
 {
     config_ = config;
 
@@ -265,7 +265,7 @@ void obstacle_loc::CloudCallback(const sensor_msgs::PointCloud2ConstPtr& msg)
     //ROS_DEBUG("Front Points: %d", front_close);
     //ROS_DEBUG("Right Points: %d", right_close);
 
-    ltu_actor_lidar::Region regions;
+    ltu_actor_route_obstacle::Region regions;
     regions.header = msg->header;
 
     regions.front_close_region_points = front_close.points;

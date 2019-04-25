@@ -1,5 +1,5 @@
 <package format="2">
-  <name>ltu_actor_lidar</name>
+  <name>ltu_actor_route_obstacle</name>
   <version>0.0.1</version>
   <description>
     This package provides proccessing for the VLP-16.
