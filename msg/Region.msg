@@ -1,0 +1,11 @@
+Header header
+
+uint32 front_close_region_points
+uint32 front_far_region_points
+uint32 left_close_region_points
+uint32 right_close_region_points
+
+bool front_close_region
+bool front_far_region
+bool left_close_region
+bool right_close_region
