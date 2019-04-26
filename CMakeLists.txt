@@ -25,8 +25,6 @@ find_package(OpenCV REQUIRED)
 
 #add dynamic reconfigure api
 generate_dynamic_reconfigure_options(
-  cfg/Control.cfg
-  cfg/RoadObstacle.cfg
   cfg/Region.cfg
 )
 
