@@ -1,5 +1,5 @@
 <launch>
-  <node pkg="ltu_actor_route_obstacle" type="obstacle" name="obstacle">
+  <node pkg="ltu_actor_route_obstacle" type="region" name="region">
     <param name="input" value="/velodyne_points" />
   </node>
 </launch>
