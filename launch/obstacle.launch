@@ -1,4 +1,5 @@
 <launch>
+  <node pkg="velodyne_pointcloud" type="VLP16_points" name="VLP16_points">
   <node pkg="ltu_actor_route_obstacle" type="region" name="region">
     <param name="input" value="/velodyne_points" />
   </node>
