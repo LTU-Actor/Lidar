@@ -14,7 +14,6 @@ find_package(catkin REQUIRED COMPONENTS
   dynamic_reconfigure
   roslaunch
   # obstacle loc
-  roslaunch_add_file_check
   pcl_ros
   message_generation
 )
