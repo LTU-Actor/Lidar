@@ -71,17 +71,35 @@ class obstacle_loc{
         region right_close ;
         region right_far; //not used;
 
+        std::string sub_topic;
+
         dynamic_reconfigure::Server<ltu_actor_route_obstacle::RegionConfig> server_;
         ltu_actor_route_obstacle::RegionConfig config_;
 
+        bool enabled;
     public:
         obstacle_loc();
+
+        bool isEnabled() {return enabled;}
+        void shutdown() {
+            sub_ = ros::Subscriber();
+            enabled =  false;
+        }
+        void startup(){
+            sub_ = nh_.subscribe<sensor_msgs::PointCloud2>(sub_topic, 100, &obstacle_loc::CloudCallback, this);
+            enabled = true;
+        }
+        bool hasSub(){
+            return (pub_.getNumSubscribers() || cloud_pub.getNumSubscribers() || vis_pub.getNumSubscribers()) > 0;
+        }
 };
 
 // constructor
 // set up publisher and subscriber
 obstacle_loc::obstacle_loc()
 {
+    enabled = false;
+
     front_close.originX = 1.0f;
     front_close.originY = -0.5f;
     front_close.width = 1.0f;
@@ -121,10 +139,16 @@ obstacle_loc::obstacle_loc()
 
     nh_ = ros::NodeHandle("~");
 
+    if (!nh_.getParam("input", sub_topic))
+    {
+        ROS_ERROR_STREAM("No lidar topic passed to " + sub_topic);
+        throw std::invalid_argument("Bad lidar topic.");
+    }
+
     pub_ = nh_.advertise<ltu_actor_route_obstacle::Region>("regions", 10);
     cloud_pub = nh_.advertise<actor_cloud_t>("centered_cloud",10);
     vis_pub = nh_.advertise<visualization_msgs::MarkerArray>( "/regions_visualization", 10);
-    sub_ = nh_.subscribe<sensor_msgs::PointCloud2>("/velodyne_points", 100, &obstacle_loc::CloudCallback, this);
+    sub_ = nh_.subscribe<sensor_msgs::PointCloud2>(sub_topic, 100, &obstacle_loc::CloudCallback, this);
 
     // Dynamic Reconfigure
     dynamic_reconfigure::Server<ltu_actor_route_obstacle::RegionConfig>::CallbackType cb;
@@ -228,42 +252,18 @@ void obstacle_loc::CloudCallback(const sensor_msgs::PointCloud2ConstPtr& msg)
     //Set Regions
     for (auto p : *centeredCloud){
         if (WithinRegion(p.x, p.y, p.z, front_close)){
-            /*geometry_msgs::Point newPoint;
-            newPoint.x = p.x;
-            newPoint.y = p.y;
-            newPoint.z = p.z;
-            front_close.points.push_back(newPoint);*/
             front_close.points++;
         }
         else if (WithinRegion(p.x, p.y, p.z, front_far)){
-            /*geometry_msgs::Point newPoint;
-            newPoint.x = p.x;
-            newPoint.y = p.y;
-            newPoint.z = p.z;
-            front_far.points.push_back(newPoint);*/
             front_far.points++;
         }
         else if (WithinRegion(p.x, p.y, p.z, left_close)){
-            /*geometry_msgs::Point newPoint;
-            newPoint.x = p.x;
-            newPoint.y = p.y;
-            newPoint.z = p.z;
-            front_left.points.push_back(newPoint);*/
             left_close.points++;
         }
         else if (WithinRegion(p.x, p.y, p.z, right_close)){
-            /*geometry_msgs::Point newPoint;
-            newPoint.x = p.x;
-            newPoint.y = p.y;
-            newPoint.z = p.z;
-            front_right.points.push_back(newPoint);*/
             right_close.points++;
         }
     }
-
-    //ROS_DEBUG("Left Points: %d", left_close);
-    //ROS_DEBUG("Front Points: %d", front_close);
-    //ROS_DEBUG("Right Points: %d", right_close);
 
     ltu_actor_route_obstacle::Region regions;
     regions.header = msg->header;
@@ -321,10 +321,6 @@ visualization_msgs::Marker obstacle_loc::RegiontoMarker(region region, float red
     marker.pose.position.x = region.originX + (region.length / 2.0f);
     marker.pose.position.y = region.originY + (region.width / 2.0f);
     marker.pose.position.z = (region.z_max + region.z_min) / 2.0f;
-    //marker.pose.orientation.x = 0.0;
-    //marker.pose.orientation.y = 0.0;
-    //marker.pose.orientation.z = 0.0;
-    //marker.pose.orientation.w = 1.0;
     marker.scale.x = region.length;
     marker.scale.y = region.width;
     marker.scale.z = region.z_max - region.z_min;
@@ -343,33 +339,6 @@ void obstacle_loc::TransformToBase(actor_cloud_ptr_t& out, actor_cloud_ptr_t& in
     if (in->points.size() == 0){
         return;
     }
-/*
-    //find ground plane (http://pointclouds.org/documentation/tutorials/planar_segmentation.php)
-    pcl::ModelCoefficients::Ptr coefficients(new pcl::ModelCoefficients());
-    pcl::PointIndices::Ptr inliers(new pcl::PointIndices());
-
-    // Create the segmentation object
-    pcl::SACSegmentation<pcl::PointXYZ> seg;
-    // Optional
-    seg.setOptimizeCoefficients (true);
-    // Mandatory
-    seg.setModelType (pcl::SACMODEL_PLANE);
-    seg.setMethodType (pcl::SAC_RANSAC);
-    seg.setDistanceThreshold (0.01);
-
-    seg.setInputCloud (in);
-    seg.segment(*inliers, *coefficients);
-
-    //(https://stackoverflow.com/questions/32299903/rotation-and-transformation-of-a-plane-to-xy-plane-and-origin-in-pointcloud)
-
-    Eigen::Matrix<float, 1, 3> floor_plane_normal_vector, xy_plane_normal_vector;
-
-    //The normal vector for the base plane (floor plane)
-    //generated from the segmentation
-    floor_plane_normal_vector[0] = coefficients->values[0];
-    floor_plane_normal_vector[1] = coefficients->values[1];
-    floor_plane_normal_vector[2] = coefficients->values[2];
-*/
 
     Eigen::Matrix<float, 1, 3> floor_plane_normal_vector, xy_plane_normal_vector;
 
@@ -385,15 +354,10 @@ void obstacle_loc::TransformToBase(actor_cloud_ptr_t& out, actor_cloud_ptr_t& in
 
 
     Eigen::Vector3f rotation_vector = xy_plane_normal_vector.cross(floor_plane_normal_vector);
-    //float theta = -atan2(rotation_vector.norm(), xy_plane_normal_vector.dot(floor_plane_normal_vector));
     float theta = config_.theta;
 
     Eigen::Affine3f transform_2 = Eigen::Affine3f::Identity();
     transform_2.rotate (Eigen::AngleAxisf (theta, rotation_vector));
-    //ROS_INFO_STREAM("---");
-    //for (int i = 0; i < 3; i++) ROS_INFO_STREAM("  " << floor_plane_normal_vector[i]);
-    //ROS_INFO_STREAM("  " << theta);
-    //transform_2.translation() << 0, 0, 0;
     pcl::transformPointCloud (*in, *out, transform_2);
 
 }
@@ -403,5 +367,19 @@ int main(int argc, char **argv)
     ros::init(argc, argv, "region");
     obstacle_loc obstacle_loc;
 
-    ros::spin();
+    ros::Rate r(10); 
+
+    while (ros::ok()){
+        if (obstacle_loc.hasSub()){
+            if (!obstacle_loc.isEnabled()){
+                obstacle_loc.startup();
+            }
+        } else {
+            if (obstacle_loc.isEnabled()){
+                obstacle_loc.shutdown();
+            }
+        }
+        ros::spinOnce();
+        r.sleep();
+    }
 }

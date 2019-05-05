@@ -12,6 +12,7 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   rospy
   dynamic_reconfigure
+  roslaunch
   # obstacle loc
   pcl_ros
   message_generation
@@ -22,7 +23,7 @@ find_package(OpenCV REQUIRED)
 ##############
 ## Reconfig ##
 ##############
-
+roslaunch_add_file_check(launch)
 #add dynamic reconfigure api
 generate_dynamic_reconfigure_options(
   cfg/Region.cfg
