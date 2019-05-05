@@ -12,14 +12,14 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   rospy
   dynamic_reconfigure
-  roslaunch
+  #roslaunch
   # obstacle loc
   pcl_ros
   message_generation
 )
 
 
-roslaunch_add_file_check(launch)
+#roslaunch_add_file_check(launch)
 
 find_package(OpenCV REQUIRED)
 
