@@ -26,7 +26,6 @@ find_package(OpenCV REQUIRED)
 ##############
 ## Reconfig ##
 ##############
-roslaunch_add_file_check(launch)
 #add dynamic reconfigure api
 generate_dynamic_reconfigure_options(
   cfg/Region.cfg
@@ -41,8 +40,6 @@ generate_messages(
   DEPENDENCIES
   std_msgs
 )
-
-
 
 ###################################
 ## catkin specific configuration ##
