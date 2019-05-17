@@ -12,6 +12,7 @@
 #include <pcl_ros/transforms.h>
 #include <math.h>
 #include <list>
+#include <std_msgs/Bool.h>
 
 #include <ltu_actor_route_obstacle/Region.h>
 
@@ -63,6 +64,8 @@ class obstacle_loc{
         ros::Publisher  cloud_pub;
         ros::Publisher vis_pub;
         ros::Subscriber sub_;
+        ros::Publisher pub_front_far;
+        ros::Publisher pub_front_close;
 
         region front_close;
         region front_far;
@@ -90,7 +93,7 @@ class obstacle_loc{
             enabled = true;
         }
         bool hasSub(){
-            return (pub_.getNumSubscribers() || cloud_pub.getNumSubscribers() || vis_pub.getNumSubscribers()) > 0;
+            return true;//(pub_.getNumSubscribers() || cloud_pub.getNumSubscribers() || vis_pub.getNumSubscribers()) > 0;
         }
 };
 
@@ -149,6 +152,9 @@ obstacle_loc::obstacle_loc()
     cloud_pub = nh_.advertise<actor_cloud_t>("centered_cloud",10);
     vis_pub = nh_.advertise<visualization_msgs::MarkerArray>( "/regions_visualization", 10);
     sub_ = nh_.subscribe<sensor_msgs::PointCloud2>(sub_topic, 100, &obstacle_loc::CloudCallback, this);
+
+    pub_front_far = nh_.advertise<std_msgs::Bool>("front_far", 10);
+    pub_front_close = nh_.advertise<std_msgs::Bool>("front_close", 10);
 
     // Dynamic Reconfigure
     dynamic_reconfigure::Server<ltu_actor_route_obstacle::RegionConfig>::CallbackType cb;
@@ -274,11 +280,24 @@ void obstacle_loc::CloudCallback(const sensor_msgs::PointCloud2ConstPtr& msg)
     regions.right_close_region_points = right_close.points;
 
 
-    if(front_close.points > front_close.threshold){ regions.front_close_region = true; }
-    else{ regions.front_close_region = false; }
+    if(front_close.points > front_close.threshold){ regions.front_close_region = true;
+        std_msgs::Bool bReg;
+        bReg.data = true;
+        pub_front_close.publish(bReg);
+    }
+    else{ regions.front_close_region = false; 
+        std_msgs::Bool bReg;
+        bReg.data = false;
+        pub_front_close.publish(bReg);}
     
-    if(front_far.points > front_far.threshold){ regions.front_far_region = true; }
-    else{ regions.front_far_region = false; }
+    if(front_far.points > front_far.threshold){ regions.front_far_region = true; 
+        std_msgs::Bool bReg;
+        bReg.data = true;
+        pub_front_far.publish(bReg);}
+    else{ regions.front_far_region = false; 
+        std_msgs::Bool bReg;
+        bReg.data = false;
+        pub_front_far.publish(bReg);}
     
     if(left_close.points > left_close.threshold){ regions.left_close_region = true; }
     else{ regions.left_close_region = false; }
