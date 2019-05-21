@@ -22,10 +22,6 @@
 #include <dynamic_reconfigure/server.h>
 #include <ltu_actor_route_obstacle/RegionConfig.h>
 
-//#include <ltu_actor_route_obstacle/Obstacle_locConfig.h>
-//#include <dynamic_reconfigure/server.h>
-//#include <pcl/PCLPointCloud2.h>
-
 using actor_cloud_t = pcl::PointCloud<pcl::PointXYZ>;
 using actor_cloud_ptr_t = actor_cloud_t::Ptr;
 
@@ -119,7 +115,7 @@ obstacle_loc::obstacle_loc()
     front_far.z_max = 0.0f;
     front_far.z_depreciation = 0.5f;
 
-    left_close.originX = 1.0f;
+    /*left_close.originX = 1.0f;
     left_close.originY = 0.5f;
     left_close.width = 1.0f;
     left_close.length = 4.0f;
@@ -133,12 +129,12 @@ obstacle_loc::obstacle_loc()
     right_close.length = 4.0f;
     right_close.z_min = -1.25f;
     right_close.z_max = 0.0f;
-    right_close.z_depreciation = 0.0f;
+    right_close.z_depreciation = 0.0f;*/
 
     front_close.threshold = 10;
     front_far.threshold = 10;
-    left_close.threshold = 10;
-    right_close.threshold = 10;
+    //left_close.threshold = 10;
+    //right_close.threshold = 10;
 
     nh_ = ros::NodeHandle("~");
 
@@ -148,8 +144,8 @@ obstacle_loc::obstacle_loc()
         throw std::invalid_argument("Bad lidar topic.");
     }
 
-    pub_ = nh_.advertise<ltu_actor_route_obstacle::Region>("regions", 10);
-    cloud_pub = nh_.advertise<actor_cloud_t>("centered_cloud",10);
+    //pub_ = nh_.advertise<ltu_actor_route_obstacle::Region>("regions", 10);
+    //cloud_pub = nh_.advertise<actor_cloud_t>("centered_cloud",10);
     vis_pub = nh_.advertise<visualization_msgs::MarkerArray>( "/regions_visualization", 10);
     sub_ = nh_.subscribe<sensor_msgs::PointCloud2>(sub_topic, 100, &obstacle_loc::CloudCallback, this);
 
@@ -225,17 +221,6 @@ bool obstacle_loc::WithinRegion(const float& x, const float& y, const float& z, 
 
 void obstacle_loc::CloudCallback(const sensor_msgs::PointCloud2ConstPtr& msg)
 {
-    //ROS_INFO_STREAM("Testing");
-
-    // velodyne publishes
-    // x float32
-    // y float32
-    // z float32
-    // intesity float32
-    // ring uint32
-
-
-
     pcl::PCLPointCloud2 pcl_pc2;
     //convert from msg to pcl
     pcl_conversions::toPCL(*msg,pcl_pc2);
@@ -280,24 +265,31 @@ void obstacle_loc::CloudCallback(const sensor_msgs::PointCloud2ConstPtr& msg)
     regions.right_close_region_points = right_close.points;
 
 
-    if(front_close.points > front_close.threshold){ regions.front_close_region = true;
+    if(front_close.points > front_close.threshold){ 
+        regions.front_close_region = true;
         std_msgs::Bool bReg;
         bReg.data = true;
         pub_front_close.publish(bReg);
     }
-    else{ regions.front_close_region = false; 
+    else{ 
+        regions.front_close_region = false; 
         std_msgs::Bool bReg;
         bReg.data = false;
-        pub_front_close.publish(bReg);}
+        pub_front_close.publish(bReg);
+    }
     
-    if(front_far.points > front_far.threshold){ regions.front_far_region = true; 
+    if(front_far.points > front_far.threshold){ 
+        regions.front_far_region = true; 
         std_msgs::Bool bReg;
         bReg.data = true;
-        pub_front_far.publish(bReg);}
-    else{ regions.front_far_region = false; 
+        pub_front_far.publish(bReg);
+    }
+    else{ 
+        regions.front_far_region = false; 
         std_msgs::Bool bReg;
         bReg.data = false;
-        pub_front_far.publish(bReg);}
+        pub_front_far.publish(bReg);
+    }
     
     if(left_close.points > left_close.threshold){ regions.left_close_region = true; }
     else{ regions.left_close_region = false; }
@@ -310,7 +302,6 @@ void obstacle_loc::CloudCallback(const sensor_msgs::PointCloud2ConstPtr& msg)
     left_close.points = 0;
     right_close.points = 0;
 
-    pub_.publish(regions);
     PublishRegions();
 }
 
