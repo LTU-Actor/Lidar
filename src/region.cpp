@@ -13,6 +13,8 @@
 #include <math.h>
 #include <list>
 #include <std_msgs/Bool.h>
+#include <std_msgs/Int32.h>
+#include <std_msgs/Float64.h>
 
 #include <ltu_actor_route_obstacle/Region.h>
 
@@ -26,6 +28,7 @@ using actor_cloud_t = pcl::PointCloud<pcl::PointXYZ>;
 using actor_cloud_ptr_t = actor_cloud_t::Ptr;
 
 #define REGION_ALPHA 0.4f
+#define DEFAULT_CLOSEST 100.0
 
 struct region{
     float originX;
@@ -34,11 +37,6 @@ struct region{
     float length;
     float z_min;
     float z_max;
-    float z_depreciation;
-
-    //std::list<geometry_msgs::Point> points;
-    int threshold;
-    int points = 0;
 };
 
 class obstacle_loc{
@@ -52,23 +50,36 @@ class obstacle_loc{
         void CloudCallback(const sensor_msgs::PointCloud2ConstPtr&);
 
         //Region Publishing
+        void PublishPoints(ros::Publisher pub, int points);
+        void PublishClosest(ros::Publisher pub, double dist);
         void PublishRegions();
         visualization_msgs::Marker RegiontoMarker(region region, float red, float green, float blue, float alpha, int id);
 
         ros::NodeHandle nh_;
-        ros::Publisher  pub_;
         ros::Publisher  cloud_pub;
         ros::Publisher vis_pub;
-        ros::Subscriber sub_;
+        ros::Subscriber lidar_sub;
+
         ros::Publisher pub_front_far;
         ros::Publisher pub_front_close;
+        ros::Publisher pub_front_closest;
+        ros::Publisher pub_left_far;
+        ros::Publisher pub_left_close;
+        ros::Publisher pub_left_closest;
+        ros::Publisher pub_right_far;
+        ros::Publisher pub_right_close;
+        ros::Publisher pub_right_closest;
 
         region front_close;
         region front_far;
         region left_close;
-        region left_far; //not used
-        region right_close ;
-        region right_far; //not used;
+        region left_far; 
+        region right_close;
+        region right_far; 
+
+        double front_dist;
+        double left_dist;
+        double right_dist;
 
         std::string sub_topic;
 
@@ -81,11 +92,11 @@ class obstacle_loc{
 
         bool isEnabled() {return enabled;}
         void shutdown() {
-            sub_ = ros::Subscriber();
+            lidar_sub = ros::Subscriber();
             enabled =  false;
         }
         void startup(){
-            sub_ = nh_.subscribe<sensor_msgs::PointCloud2>(sub_topic, 100, &obstacle_loc::CloudCallback, this);
+            lidar_sub = nh_.subscribe<sensor_msgs::PointCloud2>(sub_topic, 100, &obstacle_loc::CloudCallback, this);
             enabled = true;
         }
         bool hasSub(){
@@ -99,58 +110,25 @@ obstacle_loc::obstacle_loc()
 {
     enabled = false;
 
-    front_close.originX = 1.0f;
-    front_close.originY = -0.5f;
-    front_close.width = 1.0f;
-    front_close.length = 4.0f;
-    front_close.z_min = -1.25f;
-    front_close.z_max = 0.0f;
-    front_close.z_depreciation = 0.0f;
-
-    front_far.originX = 4.0f;
-    front_far.originY = -0.5f;
-    front_far.width = 1.0f;
-    front_far.length = 4.0f;
-    front_far.z_min = -1.25f;
-    front_far.z_max = 0.0f;
-    front_far.z_depreciation = 0.5f;
-
-    /*left_close.originX = 1.0f;
-    left_close.originY = 0.5f;
-    left_close.width = 1.0f;
-    left_close.length = 4.0f;
-    left_close.z_min = -1.25f;
-    left_close.z_max = 0.0f;
-    left_close.z_depreciation = 0.0f;
-
-    right_close.originX = 1.0f;
-    right_close.originY = -1.5f;
-    right_close.width = 1.0f;
-    right_close.length = 4.0f;
-    right_close.z_min = -1.25f;
-    right_close.z_max = 0.0f;
-    right_close.z_depreciation = 0.0f;*/
-
-    front_close.threshold = 10;
-    front_far.threshold = 10;
-    //left_close.threshold = 10;
-    //right_close.threshold = 10;
-
     nh_ = ros::NodeHandle("~");
 
-    if (!nh_.getParam("input", sub_topic))
+    if (!nh_.getParam("sub_topic", sub_topic))
     {
         ROS_ERROR_STREAM("No lidar topic passed to " + sub_topic);
         throw std::invalid_argument("Bad lidar topic.");
     }
 
-    //pub_ = nh_.advertise<ltu_actor_route_obstacle::Region>("regions", 10);
-    //cloud_pub = nh_.advertise<actor_cloud_t>("centered_cloud",10);
     vis_pub = nh_.advertise<visualization_msgs::MarkerArray>( "/regions_visualization", 10);
-    sub_ = nh_.subscribe<sensor_msgs::PointCloud2>(sub_topic, 100, &obstacle_loc::CloudCallback, this);
 
-    pub_front_far = nh_.advertise<std_msgs::Bool>("front_far", 10);
-    pub_front_close = nh_.advertise<std_msgs::Bool>("front_close", 10);
+    pub_front_far = nh_.advertise<std_msgs::Int32>("front_far", 10);
+    pub_front_close = nh_.advertise<std_msgs::Int32>("front_close", 10);
+    pub_front_closest = nh_.advertise<std_msgs::Float64>("front_closest", 10);
+    pub_left_far = nh_.advertise<std_msgs::Int32>("left_far", 10);
+    pub_left_close = nh_.advertise<std_msgs::Int32>("left_close", 10);
+    pub_left_closest = nh_.advertise<std_msgs::Float64>("left_closest", 10);
+    pub_right_far = nh_.advertise<std_msgs::Int32>("right_far", 10);
+    pub_right_close = nh_.advertise<std_msgs::Int32>("right_close", 10);
+    pub_right_closest = nh_.advertise<std_msgs::Float64>("right_closest", 10);
 
     // Dynamic Reconfigure
     dynamic_reconfigure::Server<ltu_actor_route_obstacle::RegionConfig>::CallbackType cb;
@@ -171,8 +149,6 @@ void obstacle_loc::configCallback(ltu_actor_route_obstacle::RegionConfig &config
     front_close.length = config_.front_close_length;
     front_close.z_min = config_.front_close_z_min;
     front_close.z_max = config_.front_close_z_max;
-    front_close.z_depreciation = config_.front_close_z_depreciation;
-    front_close.threshold = config_.front_close_threshold;
 
     //Front Far Config Settings
     front_far.originX = config_.front_far_originX;
@@ -181,8 +157,6 @@ void obstacle_loc::configCallback(ltu_actor_route_obstacle::RegionConfig &config
     front_far.length = config_.front_far_length;
     front_far.z_min = config_.front_far_z_min;
     front_far.z_max = config_.front_far_z_max;
-    front_far.z_depreciation = config_.front_far_z_depreciation;
-    front_far.threshold = config_.front_far_threshold;
 
     //Left Close Config Settings
     left_close.originX = config_.left_close_originX;
@@ -191,8 +165,14 @@ void obstacle_loc::configCallback(ltu_actor_route_obstacle::RegionConfig &config
     left_close.length = config_.left_close_length;
     left_close.z_min = config_.left_close_z_min;
     left_close.z_max = config_.left_close_z_max;
-    left_close.z_depreciation = config_.left_close_z_depreciation;
-    left_close.threshold = config_.left_close_threshold;
+
+    //Left Far Config Settings
+    left_far.originX = config_.left_far_originX;
+    left_far.originY = config_.left_far_originY;
+    left_far.width = config_.left_far_width;
+    left_far.length = config_.left_far_length;
+    left_far.z_min = config_.left_far_z_min;
+    left_far.z_max = config_.left_far_z_max;
 
     //Right Close Config Settings
     right_close.originX = config_.right_close_originX;
@@ -201,8 +181,14 @@ void obstacle_loc::configCallback(ltu_actor_route_obstacle::RegionConfig &config
     right_close.length = config_.right_close_length;
     right_close.z_min = config_.right_close_z_min;
     right_close.z_max = config_.right_close_z_max;
-    right_close.z_depreciation = config_.right_close_z_depreciation;
-    right_close.threshold = config_.right_close_threshold;
+
+    //Right Far Config Settings
+    right_far.originX = config_.right_far_originX;
+    right_far.originY = config_.right_far_originY;
+    right_far.width = config_.right_far_width;
+    right_far.length = config_.right_far_length;
+    right_far.z_min = config_.right_far_z_min;
+    right_far.z_max = config_.right_far_z_max;
 }
 
 
@@ -221,6 +207,18 @@ bool obstacle_loc::WithinRegion(const float& x, const float& y, const float& z, 
 
 void obstacle_loc::CloudCallback(const sensor_msgs::PointCloud2ConstPtr& msg)
 {
+    int front_far_points = 0;
+    int front_close_points = 0;
+    int left_far_points = 0;
+    int left_close_points = 0;
+    int right_far_points = 0;
+    int right_close_points = 0;
+
+    front_dist = DEFAULT_CLOSEST;
+    left_dist = DEFAULT_CLOSEST;
+    right_dist = DEFAULT_CLOSEST;
+
+
     pcl::PCLPointCloud2 pcl_pc2;
     //convert from msg to pcl
     pcl_conversions::toPCL(*msg,pcl_pc2);
@@ -243,66 +241,60 @@ void obstacle_loc::CloudCallback(const sensor_msgs::PointCloud2ConstPtr& msg)
     //Set Regions
     for (auto p : *centeredCloud){
         if (WithinRegion(p.x, p.y, p.z, front_close)){
-            front_close.points++;
+            front_close_points++;
+            if(front_dist > p.x){ front_dist = p.x; }
         }
         else if (WithinRegion(p.x, p.y, p.z, front_far)){
-            front_far.points++;
+            front_far_points++;
         }
         else if (WithinRegion(p.x, p.y, p.z, left_close)){
-            left_close.points++;
+            left_close_points++;
+            if(left_dist > p.x){ left_dist = p.x; }
+        }
+        else if (WithinRegion(p.x, p.y, p.z, left_far)){
+            left_far_points++;
         }
         else if (WithinRegion(p.x, p.y, p.z, right_close)){
-            right_close.points++;
+            right_close_points++;
+            if(right_dist > p.x){ right_dist = p.x; }
+        }
+        else if (WithinRegion(p.x, p.y, p.z, right_far)){
+            right_far_points++;
         }
     }
-
-    ltu_actor_route_obstacle::Region regions;
-    regions.header = msg->header;
-
-    regions.front_close_region_points = front_close.points;
-    regions.front_far_region_points = front_far.points;
-    regions.left_close_region_points = left_close.points;
-    regions.right_close_region_points = right_close.points;
-
-
-    if(front_close.points > front_close.threshold){ 
-        regions.front_close_region = true;
-        std_msgs::Bool bReg;
-        bReg.data = true;
-        pub_front_close.publish(bReg);
-    }
-    else{ 
-        regions.front_close_region = false; 
-        std_msgs::Bool bReg;
-        bReg.data = false;
-        pub_front_close.publish(bReg);
-    }
     
-    if(front_far.points > front_far.threshold){ 
-        regions.front_far_region = true; 
-        std_msgs::Bool bReg;
-        bReg.data = true;
-        pub_front_far.publish(bReg);
-    }
-    else{ 
-        regions.front_far_region = false; 
-        std_msgs::Bool bReg;
-        bReg.data = false;
-        pub_front_far.publish(bReg);
-    }
-    
-    if(left_close.points > left_close.threshold){ regions.left_close_region = true; }
-    else{ regions.left_close_region = false; }
-    
-    if(right_close.points > right_close.threshold){ regions.right_close_region = true; }
-    else{ regions.right_close_region = false; }
+    //Publish number of points in each region
+    PublishPoints(pub_front_far, front_far_points);
+    PublishPoints(pub_front_close, front_close_points);
+    PublishPoints(pub_left_far, left_far_points);
+    PublishPoints(pub_left_close, left_close_points);
+    PublishPoints(pub_right_far, right_far_points);
+    PublishPoints(pub_right_close, right_close_points);
 
-    front_close.points = 0;
-    front_far.points = 0;
-    left_close.points = 0;
-    right_close.points = 0;
+    //Publish closest point in front regions 
+    PublishClosest(pub_front_closest, front_dist);
+    PublishClosest(pub_left_closest, left_dist);
+    PublishClosest(pub_right_closest, right_dist);
 
+    //Publish regions visualization
     PublishRegions();
+}
+
+void obstacle_loc::PublishPoints(ros::Publisher pub, int points){
+    std_msgs::Int32 pts;
+    pts.data = points;
+    pub.publish(pts); 
+}
+
+void obstacle_loc::PublishClosest(ros::Publisher pub, double dist){
+    std_msgs::Float64 closest;
+    if(dist != DEFAULT_CLOSEST){
+        closest.data = dist;
+    }
+    else{
+        closest.data = -1.0f;
+    }
+    pub.publish(closest);
 }
 
 void obstacle_loc::PublishRegions(){
@@ -324,7 +316,6 @@ visualization_msgs::Marker obstacle_loc::RegiontoMarker(region region, float red
 
     marker.header.frame_id = "velodyne";
     marker.header.stamp = ros::Time();
-    //marker.ns = "my_namespace";
     marker.id = id;
     marker.type = visualization_msgs::Marker::CUBE;
     marker.action = visualization_msgs::Marker::ADD;

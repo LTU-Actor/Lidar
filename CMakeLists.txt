@@ -10,17 +10,11 @@ add_definitions(-std=c++11)
 find_package(catkin REQUIRED COMPONENTS
   roscpp
   std_msgs
-  rospy
   dynamic_reconfigure
   roslaunch
   pcl_ros
   message_generation
 )
-
-
-#roslaunch_add_file_check(launch)
-
-find_package(OpenCV REQUIRED)
 
 ##############
 ## Reconfig ##
@@ -28,11 +22,6 @@ find_package(OpenCV REQUIRED)
 #add dynamic reconfigure api
 generate_dynamic_reconfigure_options(
   cfg/Region.cfg
-)
-
-add_message_files(
-  FILES
-  Region.msg
 )
 
 generate_messages(
@@ -51,13 +40,10 @@ generate_messages(
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
 #  INCLUDE_DIRS include
-#  LIBRARIES actor_obstacle
 #  CATKIN_DEPENDS roscpp
   CATKIN_DEPENDS message_runtime
 #  DEPENDS system_lib
 )
-
-
 
 ###########
 ## Build ##
@@ -65,11 +51,8 @@ catkin_package(
 
 include_directories(
   ${catkin_INCLUDE_DIRS}
-
   ${dynamic_reconfigure_PACKAGE_PATH}/cmake/cfgbuild.cmake
   include
-
-  # obstacle_loc
   ${PCL_INCLUDE_DIRS}
 )
 
