@@ -236,7 +236,7 @@ void obstacle_loc::CloudCallback(const sensor_msgs::PointCloud2ConstPtr& msg)
     //It seems like the puck is able to do it for us.
     TransformToBase(centeredCloud,cloud);
 
-    cloud_pub.publish(*centeredCloud);
+    //cloud_pub.publish(*centeredCloud);
 
     //Set Regions
     for (auto p : *centeredCloud){
