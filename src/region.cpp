@@ -16,8 +16,6 @@
 #include <std_msgs/Int32.h>
 #include <std_msgs/Float64.h>
 
-#include <ltu_actor_route_obstacle/Region.h>
-
 #include <visualization_msgs/Marker.h>
 #include <visualization_msgs/MarkerArray.h>
 
@@ -56,7 +54,6 @@ class obstacle_loc{
         visualization_msgs::Marker RegiontoMarker(region region, float red, float green, float blue, float alpha, int id);
 
         ros::NodeHandle nh_;
-        ros::Publisher  cloud_pub;
         ros::Publisher vis_pub;
         ros::Subscriber lidar_sub;
 
@@ -248,6 +245,7 @@ void obstacle_loc::CloudCallback(const sensor_msgs::PointCloud2ConstPtr& msg)
         }
         else if (WithinRegion(p.x, p.y, p.z, front_far)){
             front_far_points++;
+            if(front_dist > p.x){ front_dist = p.x; }
         }
         else if (WithinRegion(p.x, p.y, p.z, left_close)){
             left_close_points++;
@@ -255,6 +253,7 @@ void obstacle_loc::CloudCallback(const sensor_msgs::PointCloud2ConstPtr& msg)
         }
         else if (WithinRegion(p.x, p.y, p.z, left_far)){
             left_far_points++;
+            if(left_dist > p.x){ left_dist = p.x; }
         }
         else if (WithinRegion(p.x, p.y, p.z, right_close)){
             right_close_points++;
@@ -262,6 +261,7 @@ void obstacle_loc::CloudCallback(const sensor_msgs::PointCloud2ConstPtr& msg)
         }
         else if (WithinRegion(p.x, p.y, p.z, right_far)){
             right_far_points++;
+            if(right_dist > p.x){ right_dist = p.x; }
         }
     }
     
