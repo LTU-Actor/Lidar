@@ -100,7 +100,9 @@ class obstacle_loc{
             enabled = true;
         }
         bool hasSub(){
-            return true;//(pub_.getNumSubscribers() || cloud_pub.getNumSubscribers() || vis_pub.getNumSubscribers()) > 0;
+            return (pub_front_far.getNumSubscribers() || pub_front_close.getNumSubscribers() || pub_front_closest.getNumSubscribers() ||
+                    pub_left_far.getNumSubscribers() || pub_left_close.getNumSubscribers() || pub_left_closest.getNumSubscribers() ||
+                    pub_right_far.getNumSubscribers() || pub_right_close.getNumSubscribers() || pub_right_closest.getNumSubscribers() || vis_pub.getNumSubscribers()) > 0;
         }
 };
 
@@ -304,7 +306,9 @@ void obstacle_loc::PublishRegions(){
     regionsArray.markers.push_back(RegiontoMarker(front_close, 1, 0, 0, REGION_ALPHA, 0)); //Red Region
     regionsArray.markers.push_back(RegiontoMarker(front_far, 0, 1, 0, REGION_ALPHA, 1));   //Green Region
     regionsArray.markers.push_back(RegiontoMarker(left_close, 0, 0, 1, REGION_ALPHA, 2));  //Blue Region
-    regionsArray.markers.push_back(RegiontoMarker(right_close, 1, 0, 1, REGION_ALPHA, 3)); //Purple Region
+    regionsArray.markers.push_back(RegiontoMarker(left_far, 1, 0, 1, REGION_ALPHA, 3));  //Blue Region
+    regionsArray.markers.push_back(RegiontoMarker(right_close, 1, 1, 0, REGION_ALPHA, 4)); //Purple Region
+    regionsArray.markers.push_back(RegiontoMarker(right_far, 0, 1, 1, REGION_ALPHA, 5));  //Blue Region
 
     vis_pub.publish(regionsArray);
 }
@@ -314,7 +318,7 @@ visualization_msgs::Marker obstacle_loc::RegiontoMarker(region region, float red
     
     visualization_msgs::Marker marker;
 
-    marker.header.frame_id = "velodyne";
+    marker.header.frame_id = "near_field";
     marker.header.stamp = ros::Time();
     marker.id = id;
     marker.type = visualization_msgs::Marker::CUBE;
