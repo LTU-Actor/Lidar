@@ -1,4 +1,7 @@
 <launch>
+
+    <arg name="frame_id" default="near_field" />
+
     <!-- <include file="$(find velodyne_ll)/launch/16.launch" />
     <include file="$(find velodyne_hl)/launch/default.launch" />
     -->
@@ -6,5 +9,6 @@
      
     <node name="region" pkg="ltu_actor_route_obstacle" type="region">
         <param name="sub_topic" value="/lidar/vh_wm_points" />
+        <param name="frame_id" value="$(arg frame_id)" />
     </node>
 </launch>

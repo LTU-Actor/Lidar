@@ -79,6 +79,7 @@ class obstacle_loc{
         double right_dist;
 
         std::string sub_topic;
+        std::string frame_id;
 
         dynamic_reconfigure::Server<ltu_actor_route_obstacle::RegionConfig> server_;
         ltu_actor_route_obstacle::RegionConfig config_;
@@ -115,6 +116,12 @@ obstacle_loc::obstacle_loc()
     {
         ROS_ERROR_STREAM("No lidar topic passed to " + sub_topic);
         throw std::invalid_argument("Bad lidar topic.");
+    }
+
+    if (!nh_.getParam("frame_id", frame_id))
+    {
+        ROS_ERROR_STREAM("No frame_id passed to " + frame_id);
+        throw std::invalid_argument("Bad frame_id.");
     }
 
     vis_pub = nh_.advertise<visualization_msgs::MarkerArray>( "/regions_visualization", 10);
@@ -318,7 +325,7 @@ visualization_msgs::Marker obstacle_loc::RegiontoMarker(region region, float red
     
     visualization_msgs::Marker marker;
 
-    marker.header.frame_id = "near_field";
+    marker.header.frame_id = frame_id;
     marker.header.stamp = ros::Time();
     marker.id = id;
     marker.type = visualization_msgs::Marker::CUBE;
